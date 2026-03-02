@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Bangkok Smart Chinese Map</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+html, body, #map {
+  height: 100%;
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.controls {
+  padding: 16px;
+  background: #f8f9fb;
+  border-bottom: 1px solid #eee;
+}
+
+.results {
+  flex: 1;               /* 占剩余空间 */
+  overflow-y: auto;      /* 独立滚动 */
+  padding: 16px;
+}
+
+.divider {
+  height: 1px;
+  margin: 12px 0;
+  background: linear-gradient(to right, transparent, #e0e0e0, transparent);
+}
+
+button:not(.modeBtn) {
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: 0.2s ease;
+}
+
+button:not(.modeBtn):hover {
+  background: #f1f3f5;
+}
+
+.restaurantItem {
+  padding: 10px;
+  border-radius: 8px;
+  transition: 0.2s ease;
+}
+
+.restaurantItem:hover {
+  background: #f8f9fa;
+}
+
+.restaurantItem {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.restaurantItem:hover {
+  background: #f5f5f5;
+}
+
+/* ===== 模式按钮分段 ===== */
+
+.modeGroup {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.modeBtn {
+  flex: 1;
+  border: none;
+  background: #f1f3f5;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.modeBtn:hover {
+  background: #e2e6ea;
+}
+
+.modeBtn.active {
+  background: #4285F4;
+  color: white;
+  box-shadow: 0 2px 6px rgba(66,133,244,0.4);
+}
+
+.modeBtn.active {
+  background: #4285F4;
+  color: white;
+}
+
+.controlGroup {
+  margin-bottom: 14px;
+}
+
+label {
+  font-size: 13px;
+  color: #555;
+  display: block;
+  margin-bottom: 6px;
+}
+
+#panel {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 360px;
+  height: 85vh;           /* 固定高度 */
+  display: flex;
+  flex-direction: column; /* 垂直布局 */
+
+  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.95);
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+  padding: 0;             /* 改为0，避免内部错位 */
+  overflow: hidden;       /* 非常关键 */
+  z-index: 999;
+}
+
+select,
+button:not(.modeBtn) {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 8px;
+}
+
+input[type=range] {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+
+</style>
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<div id="panel">
+  
+  <div class="controls">
+    <h3>Eat With Me</h3>
+
+    <div class="modeGroup">
+      <button class="modeBtn" id="mode-free"
+        onclick="setMode('free', event)">🧭 Free</button>
+
+      <button class="modeBtn" id="mode-quick"
+        onclick="setMode('quick', event)">⚡ Quick</button>
+
+      <button class="modeBtn" id="mode-explore"
+        onclick="setMode('explore', event)">🎲 Explore</button>
+
+      <button class="modeBtn" id="mode-budget"
+        onclick="setMode('budget', event)">💰 Budget</button>
+    </div>
+
+    <div class="controlGroup">
+      <label>
+        Radius: <strong><span id="radiusValue">5</span> km</strong>
+      </label>
+      <input type="range" id="radiusSlider" min="1" max="10" step="1" value="5">
+    </div>
+
+    <div class="controlGroup" id="budgetGroup">
+      <label>
+        Budget: <strong><span id="budgetValue">400</span> ฿</strong>
+      </label>
+      <input type="range" id="budgetSlider" min="100" max="1000" step="50" value="400">
+    </div>
+
+    <select id="primarySelect">
+      <option value="">All Primary Cuisine</option>
+    </select>
+
+    <select id="subtypeSelect">
+      <option value="">All Subtype</option>
+    </select>
+
+    <button onclick="generateRecommendations(true)">
+      🔄 Surprise Me
+    </button>
+
+    <button onclick="locateUser(event)">
+      📍 Locate Me
+    </button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="results">
+    <div id="list">Loading...</div>
+  </div>
+
+</div>
+
+<script>
+
+let map;
+let restaurants = [];
+let markers = [];
+let cluster = null;
+let userMarker;
+let radiusCircle;
+let decisionMode = "quick";   // 默认 Quick 模式
+
+let userLat = 13.7563;
+let userLon = 100.5018;
+
+let userBudget = 400;
+
+let maxDistance = 5;   // 动态半径
+
+// =============================
+// Load Data
+// =============================
+async function loadRestaurants() {
+  const response = await fetch("restaurants.json");
+  restaurants = await response.json();
+}
+
+// =============================
+// Shuffle
+// =============================
+function shuffle(array) {
+  let arr = array.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// =============================
+// Distance
+// =============================
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const toRad = x => x * Math.PI / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat/2)**2 +
+    Math.cos(toRad(lat1)) *
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon/2)**2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+// =============================
+// Score Calculation
+// =============================
+function calculateScores(list) {
+
+  list.forEach(r => {
+    r.distance = haversine(userLat, userLon, r.lat, r.lon);
+  });
+
+  const withinRange = list.filter(r => r.distance <= maxDistance);
+
+  withinRange.forEach(r => {
+    r.distance_norm = 1 - (r.distance / maxDistance);
+
+    r.score =
+      0.45 * r.rating_norm +
+      0.35 * r.distance_norm +
+      0.15 * r.review_weight_norm;
+  });
+
+  return withinRange.sort((a,b) => b.score - a.score);
+}
+
+// =============================
+// Quick Mode Calculation
+// =============================
+function quickMode(list) {
+
+// 强制最大半径 5km
+const quickRadius = Math.min(maxDistance, 5);
+
+list.forEach(r => {
+  r.distance = haversine(userLat, userLon, r.lat, r.lon);
+});
+
+const withinRange = list.filter(r => r.distance <= quickRadius);
+
+withinRange.forEach(r => {
+
+  const distance_norm = 1 - (r.distance / quickRadius);
+
+  r.score =
+    0.50 * r.rating_norm +
+    0.40 * distance_norm +
+    0.10 * r.review_weight_norm;
+});
+
+const sorted = withinRange.sort((a,b) => b.score - a.score);
+
+// 多样性约束：每种 primary_cuisine 只取一个
+const usedCuisine = new Set();
+const result = [];
+
+for (let r of sorted) {
+  if (!usedCuisine.has(r.primary_cuisine)) {
+    usedCuisine.add(r.primary_cuisine);
+    result.push(r);
+  }
+  if (result.length === 3) break;
+}
+
+return result;
+}
+
+function setMode(mode) {
+
+  decisionMode = mode;
+
+  // ===== 高亮逻辑（class 控制）=====
+  document.querySelectorAll(".modeBtn")
+    .forEach(btn => btn.classList.remove("active"));
+
+  const activeBtn =
+    document.getElementById("mode-" + mode);
+
+  if (activeBtn) {
+    activeBtn.classList.add("active");
+  }
+
+  // ===== Budget UI 控制 =====
+  const budgetGroup = document.getElementById("budgetGroup");
+
+if (mode === "budget") {
+  budgetGroup.style.display = "block";
+} else {
+  budgetGroup.style.display = "none";
+}
+
+  generateRecommendations();
+}
+
+
+
+// =============================
+// Explore Mode Calculation
+// =============================
+function exploreMode(list) {
+
+// 扩大半径（鼓励跳出舒适区）
+const exploreRadius = maxDistance + 3;
+
+list.forEach(r => {
+  r.distance = haversine(userLat, userLon, r.lat, r.lon);
+});
+
+const withinRange = list.filter(r => r.distance <= exploreRadius);
+
+withinRange.forEach(r => {
+
+  const distance_norm = 1 - (r.distance / exploreRadius);
+
+  // 新颖度：评论数较少的给加分
+  const novelty =
+    r.review_count < 100 ? 0.15 : 0;
+
+  r.score =
+    0.35 * r.rating_norm +
+    0.25 * distance_norm +
+    0.15 * r.review_weight_norm +
+    novelty;
+
+  // 小随机扰动（受控随机）
+  r.score += Math.random() * 0.15;
+});
+
+const sorted = withinRange.sort((a,b) => b.score - a.score);
+
+// 从前 30 名中随机选 5 个
+const pool = sorted.slice(0, 30);
+
+return shuffle(pool).slice(0, 5);
+}
+
+// =============================
+// Budget Mode Calculation
+// =============================
+function budgetMode(list) {
+
+list.forEach(r => {
+  r.distance = haversine(userLat, userLon, r.lat, r.lon);
+});
+
+const withinRange = list.filter(r => r.distance <= maxDistance);
+
+withinRange.forEach(r => {
+
+  const distance_norm = 1 - (r.distance / maxDistance);
+
+  // 价格匹配度
+  const priceDiff = Math.abs(r.price_mid - userBudget);
+  const priceScore = 1 - (priceDiff / userBudget);
+
+  // 如果价格差超过50%，直接降权
+  if (priceDiff > userBudget * 0.5) {
+    r.score = -1;
+    return;
+  }
+
+  r.score =
+    0.35 * r.rating_norm +
+    0.25 * distance_norm +
+    0.25 * priceScore +
+    0.15 * r.review_weight_norm;
+});
+
+const sorted = withinRange
+  .filter(r => r.score >= 0)
+  .sort((a,b) => b.score - a.score);
+
+return sorted.slice(0, 5);
+}
+
+
+// =============================
+// Generate Recommendations
+// =============================
+function generateRecommendations(randomize = false) {
+
+const primary = document.getElementById("primarySelect").value;
+const subtype = document.getElementById("subtypeSelect").value;
+
+let filtered = restaurants;
+
+if (primary)
+  filtered = filtered.filter(r => r.primary_cuisine === primary);
+
+if (subtype)
+  filtered = filtered.filter(r => r.cuisine_subtype === subtype);
+
+let ranked;
+
+// ===== 模式分发 =====
+if (decisionMode === "quick") {
+  ranked = quickMode(filtered);
+}
+else if (decisionMode === "explore") {
+  ranked = exploreMode(filtered);
+}
+else if (decisionMode === "budget") {
+  ranked = budgetMode(filtered);
+}
+else {   // free
+  ranked = calculateScores(filtered);
+}
+
+if (!ranked || ranked.length === 0) {
+  renderMarkers([], []);
+  renderList([]);
+  return;
+}
+
+let selected;
+
+if (
+  decisionMode === "quick" ||
+  decisionMode === "explore" ||
+  decisionMode === "budget"
+) {
+  selected = ranked;
+}
+else {
+  const pool = ranked.slice(0, 20);
+
+  selected = randomize
+    ? shuffle(pool).slice(0,5)
+    : ranked.slice(0,5);
+}
+
+renderMarkers(ranked, selected);
+renderList(selected);
+}
+
+// =============================
+// Marker Rendering
+// =============================
+function renderMarkers(rankedList, top5) {
+
+  markers.forEach(m => m.setMap(null));
+  markers = [];
+
+  if (cluster) cluster.clearMarkers();
+
+  let normalMarkers = [];
+
+  rankedList.forEach(r => {
+
+    const isTop = top5.includes(r);
+
+    const marker = new google.maps.Marker({
+      position: { lat: r.lat, lng: r.lon },
+      map: isTop ? map : null,
+      zIndex: isTop ? 999 : 1,
+      icon: isTop
+        ? {
+            url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" 
+                fill="#FFD700">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                <circle cx="12" cy="9" r="2.5" fill="white"/>
+              </svg>
+            `),
+            scaledSize: new google.maps.Size(50,50)
+          }
+        : undefined
+    });
+
+    marker.addListener("click", () => renderDetail(r));
+
+    if (!isTop) normalMarkers.push(marker);
+
+    markers.push(marker);
+  });
+
+  cluster = new markerClusterer.MarkerClusterer({
+    map,
+    markers: normalMarkers
+  });
+}
+
+// =============================
+// List Rendering
+// =============================
+function renderList(top5) {
+
+  const container = document.getElementById("list");
+  container.innerHTML = "";
+
+  if (top5.length === 0) {
+    container.innerHTML = "No restaurants within selected radius.";
+    return;
+  }
+
+  top5.forEach(r => {
+
+    const div = document.createElement("div");
+    div.className = "restaurantItem";
+
+    div.innerHTML = `
+      <strong>${r.name}</strong><br>
+      ⭐ ${r.weighted_rating.toFixed(2)} (${r.review_count})<br>
+      ${r.primary_cuisine} – ${r.cuisine_subtype}<br>
+      ฿${Math.round(r.price_mid)}<br>
+      ${r.distance.toFixed(2)} km<br>
+      <a href="${r.url}" target="_blank">Open in Google Maps</a>
+    `;
+
+    div.onclick = () => {
+      map.panTo({ lat: r.lat, lng: r.lon });
+    };
+
+    container.appendChild(div);
+  });
+}
+
+// =============================
+// Detail
+// =============================
+function renderDetail(r) {
+
+  const container = document.getElementById("list");
+
+  container.innerHTML = `
+    <h3>${r.name}</h3>
+    ⭐ ${r.weighted_rating.toFixed(2)} (${r.review_count})<br>
+    ${r.primary_cuisine} – ${r.cuisine_subtype}<br>
+    ฿${Math.round(r.price_mid)}<br>
+    Distance: ${r.distance.toFixed(2)} km<br><br>
+    <a href="${r.url}" target="_blank">Open in Google Maps</a>
+    <hr>
+    <button onclick="generateRecommendations()">← Back to Top 5</button>
+  `;
+}
+
+// =============================
+// Radius Control
+// =============================
+function initRadiusSlider() {
+
+  const slider = document.getElementById("radiusSlider");
+  const label = document.getElementById("radiusValue");
+
+  slider.addEventListener("input", () => {
+
+    maxDistance = parseInt(slider.value);
+    label.textContent = maxDistance;
+
+    updateRadiusCircle();
+    generateRecommendations();
+  });
+}
+
+
+function updateRadiusCircle() {
+
+  if (radiusCircle) radiusCircle.setMap(null);
+
+  radiusCircle = new google.maps.Circle({
+    strokeColor: "#4285F4",
+    strokeOpacity: 0.6,
+    strokeWeight: 2,
+    fillColor: "#4285F4",
+    fillOpacity: 0.1,
+    map: map,
+    center: { lat: userLat, lng: userLon },
+    radius: maxDistance * 1000
+  });
+}
+
+// =============================
+// Budget Control
+// =============================
+function initBudgetSlider() {
+
+const slider = document.getElementById("budgetSlider");
+const label = document.getElementById("budgetValue");
+
+slider.addEventListener("input", () => {
+
+  userBudget = parseInt(slider.value);
+  label.textContent = userBudget;
+
+  if (decisionMode === "budget") {
+    generateRecommendations();
+  }
+});
+}
+
+
+// =============================
+// Locate User
+// =============================
+function locateUser(e) {
+
+const btn = e.target;
+btn.innerText = "Locating...";
+
+navigator.geolocation.getCurrentPosition(
+  pos => {
+    userLat = pos.coords.latitude;
+    userLon = pos.coords.longitude;
+
+    const newPos = { lat: userLat, lng: userLon };
+
+    userMarker.setPosition(newPos);
+    map.setCenter(newPos);
+
+    updateRadiusCircle();
+    generateRecommendations();
+
+    btn.innerText = "📍 Locate Me";
+  },
+  err => {
+    console.log("Geolocation error:", err);
+    btn.innerText = "📍 Locate Me";
+    alert("Location failed");
+  }
+);
+}
+
+// =============================
+// User Marker
+// =============================
+function createUserMarker() {
+
+  userMarker = new google.maps.Marker({
+    position: { lat: userLat, lng: userLon },
+    map: map,
+    draggable: true,
+    zIndex: 9999,
+    icon: {
+      url: "cat_images.png",
+      scaledSize: new google.maps.Size(100,50)
+    }
+  });
+
+  userMarker.addListener("dragend", (e) => {
+    userLat = e.latLng.lat();
+    userLon = e.latLng.lng();
+    updateRadiusCircle();
+    generateRecommendations();
+  });
+}
+
+function initFilters() {
+
+const primarySelect = document.getElementById("primarySelect");
+const subtypeSelect = document.getElementById("subtypeSelect");
+
+const primaries = [...new Set(restaurants.map(r => r.primary_cuisine))];
+
+primaries.forEach(p => {
+  const option = document.createElement("option");
+  option.value = p;
+  option.textContent = p;
+  primarySelect.appendChild(option);
+});
+
+primarySelect.addEventListener("change", () => {
+
+  subtypeSelect.innerHTML =
+    "<option value=''>All Subtype</option>";
+
+  const selectedPrimary = primarySelect.value;
+
+  if (!selectedPrimary) {
+    generateRecommendations();
+    return;
+  }
+
+  const subtypes =
+    [...new Set(
+      restaurants
+        .filter(r => r.primary_cuisine === selectedPrimary)
+        .map(r => r.cuisine_subtype)
+    )];
+
+  subtypes.forEach(s => {
+    const option = document.createElement("option");
+    option.value = s;
+    option.textContent = s;
+    subtypeSelect.appendChild(option);
+  });
+
+  generateRecommendations();
+});
+
+subtypeSelect.addEventListener("change",
+  generateRecommendations
+);
+}
+
+// =============================
+// Init
+// =============================
+function initMap() {
+
+  map = new google.maps.Map(
+    document.getElementById("map"), {
+      zoom: 13,
+      center: { lat: userLat, lng: userLon }
+    });
+
+  loadRestaurants().then(() => {
+
+    initFilters(); 
+    createUserMarker();
+    initRadiusSlider();
+    initBudgetSlider();
+    updateRadiusCircle();
+
+    setMode(decisionMode);
+
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        userLat = pos.coords.latitude;
+        userLon = pos.coords.longitude;
+
+        userMarker.setPosition({
+          lat: userLat,
+          lng: userLon
+        });
+
+        map.setCenter({
+          lat: userLat,
+          lng: userLon
+        });
+
+        updateRadiusCircle();
+        generateRecommendations();
+      },
+      () => generateRecommendations()
+    );
+  });
+}
+
+</script>
+
+<script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
+
+
+<script async
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB_RfKBqwOtTcHSlcvLB4-8Z3iSWzExzvk&callback=initMap">
+</script>
+
+</body>
+</html>
