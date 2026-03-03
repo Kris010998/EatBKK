@@ -156,7 +156,7 @@ input[type=range] {
     height: 90vh;
 
     transform: translateY(40%);
-    transition: transform 0.2s ease;
+    transition: transform 0.25s ease;
 
     border-radius: 20px 20px 0 0;
   }
@@ -859,50 +859,60 @@ function initMap() {
 
 function initBottomSheet() {
 
-  if (window.innerWidth > 768) return;
+if (window.innerWidth > 768) return;
 
-  const panel = document.getElementById("panel");
-  const handle = document.getElementById("dragHandle");
+const panel = document.getElementById("panel");
+const handle = document.getElementById("dragHandle");
 
-  let startY = 0;
-  let currentTranslate = 40;  // 默认 40%
-  let isDragging = false;
+let startY = 0;
+let currentTranslate = 40;   // 默认半开
+let isDragging = false;
 
-  handle.addEventListener("touchstart", (e) => {
-    isDragging = true;
-    startY = e.touches[0].clientY;
-  });
+function setPosition(percent) {
+  currentTranslate = percent;
+  panel.style.transform = `translateY(${percent}%)`;
+}
 
-  handle.addEventListener("touchmove", (e) => {
+handle.addEventListener("touchstart", (e) => {
+  isDragging = true;
+  startY = e.touches[0].clientY;
+});
 
-    if (!isDragging) return;
+handle.addEventListener("touchmove", (e) => {
+  if (!isDragging) return;
 
-    const delta = e.touches[0].clientY - startY;
+  const delta = e.touches[0].clientY - startY;
 
-    let newTranslate =
-      currentTranslate + (delta / window.innerHeight) * 100;
+  let newTranslate =
+    currentTranslate + (delta / window.innerHeight) * 100;
 
-    newTranslate = Math.max(0, Math.min(70, newTranslate));
+  newTranslate = Math.max(0, Math.min(85, newTranslate));
 
-    panel.style.transform =
-      `translateY(${newTranslate}%)`;
-  }, { passive: true });
+  panel.style.transform =
+    `translateY(${newTranslate}%)`;
+}, { passive: true });
 
-  handle.addEventListener("touchend", (e) => {
+handle.addEventListener("touchend", (e) => {
 
-    const delta = e.changedTouches[0].clientY - startY;
+  const delta = e.changedTouches[0].clientY - startY;
 
-    currentTranslate +=
-      (delta / window.innerHeight) * 100;
+  currentTranslate +=
+    (delta / window.innerHeight) * 100;
 
-    currentTranslate =
-      Math.max(0, Math.min(70, currentTranslate));
+  currentTranslate =
+    Math.max(0, Math.min(85, currentTranslate));
 
-    panel.style.transform =
-      `translateY(${currentTranslate}%)`;
+  // ===== 吸附逻辑（关键）=====
+  if (currentTranslate < 25) {
+    setPosition(0);        // fully open
+  } else if (currentTranslate < 60) {
+    setPosition(40);       // half
+  } else {
+    setPosition(85);       // collapsed
+  }
 
-    isDragging = false;
-  });
+  isDragging = false;
+});
 }
 
 </script>
