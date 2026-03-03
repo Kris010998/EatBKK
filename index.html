@@ -939,27 +939,35 @@ function initControlsToggle() {
 
   const toggleBtn = document.getElementById("toggleControls");
   const controls = document.querySelector(".controls");
+  const divider = document.querySelector(".divider");
 
   let collapsed = false;
+
+  let fullHeight = controls.scrollHeight;
+  controls.style.maxHeight = fullHeight + "px";
 
   toggleBtn.addEventListener("click", () => {
 
     collapsed = !collapsed;
 
     if (collapsed) {
+
       controls.style.maxHeight = "0px";
+      divider.style.display = "none";
       toggleBtn.textContent = "+";
+
     } else {
-      controls.style.maxHeight = "1000px";  // 足够大
+
+      controls.style.maxHeight = fullHeight + "px";
+      divider.style.display = "block";
       toggleBtn.textContent = "−";
+
     }
 
-  });
-
-  // 初始化为展开状态
-  controls.style.maxHeight = "1000px";
+});
 
 }
+
 
 </script>
 
