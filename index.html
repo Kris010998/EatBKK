@@ -10,6 +10,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#toggleControls {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
 html, body, #map {
   height: 100%;
   margin: 0;
@@ -126,7 +140,7 @@ label {
   border-radius: 16px;
   box-shadow: 0 12px 30px rgba(0,0,0,0.25);
   padding: 0;             /* 改为0，避免内部错位 */
-  overflow: hidden;       /* 非常关键 */
+  overflow: visible;       /* 非常关键 */
   z-index: 999;
 }
 
@@ -205,7 +219,10 @@ input[type=range] {
   <div id="dragHandle"></div>
 
   <div class="controls">
-    <h3>Eat With Me</h3>
+    <div class="panelHeader">
+      <h3>Eat With Me</h3>
+      <button id="toggleControls">−</button>
+    </div>
 
     <div class="modeGroup">
       <button class="modeBtn" id="mode-free"
@@ -826,6 +843,7 @@ function initMap() {
     initRadiusSlider();
     initBudgetSlider();
     updateRadiusCircle();
+    initControlsToggle();
 
     setMode(decisionMode);
     initBottomSheet();
@@ -913,6 +931,29 @@ handle.addEventListener("touchend", (e) => {
 
   isDragging = false;
 });
+}
+
+function initControlsToggle() {
+
+  const toggleBtn = document.getElementById("toggleControls");
+  const controls = document.querySelector(".controls");
+
+  let collapsed = false;
+
+  toggleBtn.addEventListener("click", () => {
+
+    collapsed = !collapsed;
+
+    if (collapsed) {
+      controls.style.maxHeight = "0px";
+      controls.style.overflow = "hidden";
+      toggleBtn.textContent = "+";
+    } else {
+      controls.style.display = "block";
+      toggleBtn.textContent = "−";
+    }
+
+  });
 }
 
 </script>
