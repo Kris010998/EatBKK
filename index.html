@@ -311,6 +311,7 @@ let cluster = null;
 let userMarker;
 let radiusCircle;
 let decisionMode = "quick";   // 默认 Quick 模式
+let activeMarker = null;
 
 let userLat = 13.7563;
 let userLon = 100.5018;
@@ -596,46 +597,68 @@ renderList(selected);
 // =============================
 function renderMarkers(rankedList, top5) {
 
-  markers.forEach(m => m.setMap(null));
-  markers = [];
+activeMarker = null;
 
-  if (cluster) cluster.clearMarkers();
+markers.forEach(m => m.setMap(null));
+markers = [];
 
-  let normalMarkers = [];
+if (cluster) cluster.clearMarkers();
 
-  rankedList.forEach(r => {
+let normalMarkers = [];
 
-    const isTop = top5.includes(r);
+rankedList.forEach(r => {
 
-    const marker = new google.maps.Marker({
-      position: { lat: r.lat, lng: r.lon },
-      map: isTop ? map : null,
-      zIndex: isTop ? 999 : 1,
-      icon: isTop
-        ? {
-            url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" 
-                fill="#FFD700">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-                <circle cx="12" cy="9" r="2.5" fill="white"/>
-              </svg>
-            `),
-            scaledSize: new google.maps.Size(50,50)
-          }
-        : undefined
+  const isTop = top5.includes(r);
+
+  const color = isTop ? "#FFD700" : "#EA4335";
+
+  const baseIcon = {
+    url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+        <circle cx="12" cy="9" r="2.5" fill="white"/>
+      </svg>
+    `),
+    scaledSize: new google.maps.Size(40,40)
+  };
+
+  const marker = new google.maps.Marker({
+    position: { lat: r.lat, lng: r.lon },
+    map: map,
+    zIndex: isTop ? 999 : 1,
+    icon: baseIcon
+  });
+
+  marker.defaultIcon = baseIcon;
+
+  marker.addListener("click", () => {
+
+    if (activeMarker) {
+      activeMarker.setIcon(activeMarker.defaultIcon);
+      activeMarker.setZIndex(1);
+    }
+
+    marker.setIcon({
+      ...marker.defaultIcon,
+      scaledSize: new google.maps.Size(65,65)
     });
 
-    marker.addListener("click", () => renderDetail(r));
+    marker.setZIndex(3000);
 
-    if (!isTop) normalMarkers.push(marker);
+    activeMarker = marker;
 
-    markers.push(marker);
+    renderDetail(r);
   });
 
-  cluster = new markerClusterer.MarkerClusterer({
-    map,
-    markers: normalMarkers
-  });
+  if (!isTop) normalMarkers.push(marker);
+
+  markers.push(marker);
+});
+
+cluster = new markerClusterer.MarkerClusterer({
+  map,
+  markers: normalMarkers
+});
 }
 
 // =============================
