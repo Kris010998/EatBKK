@@ -34,6 +34,8 @@ html, body, #map {
   padding: 16px;
   background: #f8f9fb;
   border-bottom: 1px solid #eee;
+  transition: max-height 0.25s ease;
+  overflow: hidden;
 }
 
 .results {
@@ -946,14 +948,17 @@ function initControlsToggle() {
 
     if (collapsed) {
       controls.style.maxHeight = "0px";
-      controls.style.overflow = "hidden";
       toggleBtn.textContent = "+";
     } else {
-      controls.style.display = "block";
+      controls.style.maxHeight = "1000px";  // 足够大
       toggleBtn.textContent = "−";
     }
 
   });
+
+  // 初始化为展开状态
+  controls.style.maxHeight = "1000px";
+
 }
 
 </script>
