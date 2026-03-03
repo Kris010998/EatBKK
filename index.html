@@ -18,6 +18,11 @@
   flex-shrink: 0;
 }
 
+.panelHeader h3 {
+  margin: 0;
+  white-space: nowrap;
+}
+
 #toggleControls {
   background: none;
   border: none;
@@ -32,11 +37,14 @@ html, body, #map {
 }
 
 .controls {
+  transition: max-height 0.25s ease;
+  overflow: hidden;
+}
+
+.controlsInner {
   padding: 16px;
   background: #f8f9fb;
   border-bottom: 1px solid #eee;
-  transition: max-height 0.25s ease;
-  overflow: hidden;
 }
 
 .results {
@@ -230,6 +238,7 @@ input[type=range] {
   </div>
   
   <div class="controls">
+    <div class="controlsInner">
 
     <div class="modeGroup">
       <button class="modeBtn" id="mode-free"
@@ -275,6 +284,7 @@ input[type=range] {
       📍 Locate Me
     </button>
   </div>
+</div>
 
   <div class="divider"></div>
 
