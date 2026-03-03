@@ -17,14 +17,13 @@ html, body, #map {
 }
 
 .controls {
-  flex: 0 0 auto; 
   padding: 16px;
   background: #f8f9fb;
   border-bottom: 1px solid #eee;
 }
 
 .results {
-  flex: 1 1 auto;               /* 占剩余空间 */
+  flex: 1;               /* 占剩余空间 */
   overflow-y: auto;      /* 独立滚动 */
   padding: 16px;
 }
@@ -117,7 +116,7 @@ label {
   position: absolute;
   top: 10px;
   left: 10px;
-  width: min(360px, 92vw);
+  width: 360px;
   height: 85vh;           /* 固定高度 */
   display: flex;
   flex-direction: column; /* 垂直布局 */
@@ -129,18 +128,6 @@ label {
   padding: 0;             /* 改为0，避免内部错位 */
   overflow: hidden;       /* 非常关键 */
   z-index: 999;
-  touch-action: pan-y;
-}
-
-@media (max-width: 768px) {
-  #panel {
-    top: auto;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 60vh;
-    border-radius: 20px 20px 0 0;
-  }
 }
 
 select,
@@ -155,7 +142,58 @@ input[type=range] {
   margin-bottom: 10px;
 }
 
+/* =============================
+   Mobile Bottom Sheet Layout
+============================= */
 
+@media (max-width: 768px) {
+
+  #panel {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 90vh;
+
+    transform: translateY(40%);
+    transition: transform 0.2s ease;
+
+    border-radius: 20px 20px 0 0;
+  }
+
+  .controls {
+    padding: 14px;
+  }
+
+  .results {
+    padding: 14px;
+  }
+
+  button,
+  select {
+    min-height: 42px;
+  }
+
+  .modeBtn {
+    padding: 10px 0;
+    font-size: 14px;
+  }
+
+}
+/* ===== Drag Handle ===== */
+
+#dragHandle {
+  width: 50px;
+  height: 6px;
+  background: #ccc;
+  border-radius: 3px;
+  margin: 10px auto 8px auto;
+  cursor: grab;
+}
+
+#dragHandle:active {
+  cursor: grabbing;
+}
 </style>
 </head>
 
@@ -164,7 +202,8 @@ input[type=range] {
 <div id="map"></div>
 
 <div id="panel">
-  
+  <div id="dragHandle"></div>
+
   <div class="controls">
     <h3>Eat With Me</h3>
 
@@ -789,6 +828,7 @@ function initMap() {
     updateRadiusCircle();
 
     setMode(decisionMode);
+    initBottomSheet();
 
     navigator.geolocation.getCurrentPosition(
       pos => {
@@ -810,6 +850,58 @@ function initMap() {
       },
       () => generateRecommendations()
     );
+  });
+}
+
+// =============================
+// Mobile Bottom Sheet Drag
+// =============================
+
+function initBottomSheet() {
+
+  if (window.innerWidth > 768) return;
+
+  const panel = document.getElementById("panel");
+  const handle = document.getElementById("dragHandle");
+
+  let startY = 0;
+  let currentTranslate = 40;  // 默认 40%
+  let isDragging = false;
+
+  handle.addEventListener("touchstart", (e) => {
+    isDragging = true;
+    startY = e.touches[0].clientY;
+  });
+
+  handle.addEventListener("touchmove", (e) => {
+
+    if (!isDragging) return;
+
+    const delta = e.touches[0].clientY - startY;
+
+    let newTranslate =
+      currentTranslate + (delta / window.innerHeight) * 100;
+
+    newTranslate = Math.max(0, Math.min(70, newTranslate));
+
+    panel.style.transform =
+      `translateY(${newTranslate}%)`;
+  }, { passive: true });
+
+  handle.addEventListener("touchend", (e) => {
+
+    const delta = e.changedTouches[0].clientY - startY;
+
+    currentTranslate +=
+      (delta / window.innerHeight) * 100;
+
+    currentTranslate =
+      Math.max(0, Math.min(70, currentTranslate));
+
+    panel.style.transform =
+      `translateY(${currentTranslate}%)`;
+
+    isDragging = false;
   });
 }
 
