@@ -249,12 +249,19 @@ If using VS Code:
 The project can be deployed using **Vercel**.
 
 Deployment workflow:
+
 GitHub Repository
+
 ↓
+
 Connect to Vercel
+
 ↓
+
 Automatic Deployment
+
 ↓
+
 Public Web Application
 
 
