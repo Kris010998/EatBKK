@@ -38,6 +38,7 @@ The interactive map allows users to:
 # 🔄 Project Workflow
 
 The project follows a simple data-to-application pipeline:
+
 Google Maps Export (CSV)
 
 ⬇️
@@ -329,4 +330,4 @@ If you would like to suggest a restaurant, report incorrect data, or propose new
 
 # 📜 License
 
-This project is for research and educational purposes.
+This project is for research purposes.
