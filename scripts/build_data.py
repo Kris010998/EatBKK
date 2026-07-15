@@ -37,6 +37,7 @@ EXPORT_COLUMNS = [
     "lon",
     "primary_cuisine",
     "cuisine_subtype",
+    "rating",
     "weighted_rating",
     "rating_norm",
     "review_count",
@@ -103,6 +104,20 @@ def load_rows(path: Path) -> list[dict[str, Any]]:
         workbook.close()
         return rows
     raise ValueError(f"Unsupported source type: {suffix}. Use .xlsx, .xlsm, or .csv.")
+
+
+def source_modified_date(path: Path) -> str | None:
+    """Return a stable source date from Excel metadata when available."""
+    if path.suffix.lower() not in {".xlsx", ".xlsm"}:
+        return None
+    try:
+        from openpyxl import load_workbook
+    except ImportError as exc:  # pragma: no cover - exercised in deployment setup
+        raise RuntimeError("Excel input requires openpyxl; run pip install -r requirements.txt") from exc
+    workbook = load_workbook(path, read_only=True, data_only=True)
+    modified = workbook.properties.modified
+    workbook.close()
+    return modified.date().isoformat() if modified else None
 
 
 def clean_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -194,6 +209,7 @@ def build_records(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "lon": row["lon"],
             "primary_cuisine": row["primary_cuisine"],
             "cuisine_subtype": row.get("cuisine_subtype"),
+            "rating": row["rating"],
             "weighted_rating": weighted[index],
             "rating_norm": rating_norm[index],
             "review_count": int(row["review_count"]),
@@ -226,10 +242,11 @@ def build_dataset(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any], lis
 
     records = build_records(rows)
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "valid": True,
         "source": relative_path(path),
         "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "source_modified_date": source_modified_date(path),
         "restaurant_count": len(records),
         "primary_cuisine_count": len({record["primary_cuisine"] for record in records}),
         "primary_cuisines": dict(sorted(Counter(record["primary_cuisine"] for record in records).items())),

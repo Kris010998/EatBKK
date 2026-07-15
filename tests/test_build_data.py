@@ -18,6 +18,8 @@ class BuildDataTests(unittest.TestCase):
         self.assertTrue(report["valid"])
         self.assertEqual(len(records), 199)
         self.assertEqual(len({item["url"] for item in records}), 199)
+        self.assertTrue(all(0 <= item["rating"] <= 5 for item in records))
+        self.assertRegex(report["source_modified_date"], r"^\d{4}-\d{2}-\d{2}$")
         self.assertTrue(all("price_min" in item and "price_max" in item for item in records))
 
     def test_duplicate_url_fails_validation(self):

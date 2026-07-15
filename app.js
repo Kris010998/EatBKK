@@ -55,6 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindDisclosureControls();
   bindSurprise();
 
+  loadDataMetadata();
   await loadRestaurants();
   populateCuisineFilters();
   generateRecommendations();
@@ -81,6 +82,7 @@ function cacheElements() {
   elements.subtypeSelect = document.getElementById("subtypeSelect");
   elements.radiusBadge = document.getElementById("radiusBadge");
   elements.resultCount = document.getElementById("resultCount");
+  elements.dataUpdatedTime = document.getElementById("dataUpdatedTime");
   elements.resultsTrack = document.getElementById("resultsTrack");
   elements.resultsSection = document.getElementById("resultsSection");
   elements.emptyState = document.getElementById("emptyState");
@@ -105,6 +107,28 @@ async function loadRestaurants() {
     elements.resultCount.textContent = "Restaurant data could not load";
     elements.compactResultCount.textContent = "Restaurant data unavailable";
     showToast("Restaurant data could not load. Please refresh and try again.");
+  }
+}
+
+async function loadDataMetadata() {
+  try {
+    const response = await fetch("./data/quality-report.json", { cache: "no-cache" });
+    if (!response.ok) throw new Error(`Metadata request failed (${response.status})`);
+    const report = await response.json();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(report.source_modified_date || "")) {
+      throw new Error("Source update date is missing");
+    }
+    const sourceDate = report.source_modified_date;
+    elements.dataUpdatedTime.dateTime = sourceDate;
+    elements.dataUpdatedTime.textContent = new Intl.DateTimeFormat("en", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC"
+    }).format(new Date(`${sourceDate}T00:00:00Z`));
+  } catch (error) {
+    console.error(error);
+    elements.dataUpdatedTime.textContent = "date unavailable";
   }
 }
 
@@ -465,7 +489,11 @@ function createRestaurantCard(restaurant) {
   facts.append(
     createFact("near_me", formatDistance(restaurant.distance)),
     createFact("sell", formatPrice(restaurant)),
-    createFact("star", `${restaurant.weighted_rating.toFixed(1)} (${formatCount(restaurant.review_count)})`)
+    createFact(
+      "star",
+      `${displayRating(restaurant).toFixed(1)} (${formatCount(restaurant.review_count)})`,
+      "Google Maps rating"
+    )
   );
 
   const actions = document.createElement("div");
@@ -501,10 +529,18 @@ function createRestaurantCard(restaurant) {
   return card;
 }
 
-function createFact(iconName, value) {
+function createFact(iconName, value, label = "") {
   const item = document.createElement("li");
+  if (label) {
+    item.title = label;
+    item.setAttribute("aria-label", `${label}: ${value}`);
+  }
   item.append(createIcon(iconName), document.createTextNode(value));
   return item;
+}
+
+function displayRating(restaurant) {
+  return Number.isFinite(restaurant.rating) ? restaurant.rating : restaurant.weighted_rating;
 }
 
 function createIcon(name) {

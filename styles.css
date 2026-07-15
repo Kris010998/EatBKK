@@ -659,6 +659,20 @@ h2 {
   font-size: 13px;
 }
 
+.results-heading-row .data-provenance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.data-provenance a {
+  color: var(--cobalt-strong);
+  font-weight: 700;
+  text-underline-offset: 2px;
+}
+
 .surprise-button {
   display: inline-flex;
   min-height: 44px;
