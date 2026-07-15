@@ -26,7 +26,7 @@
         <span class="map-action__label">Locate me</span>
       </button>
 
-      <div class="radius-badge" id="radiusBadge" aria-live="polite">5 km radius</div>
+      <div class="radius-badge" id="radiusBadge" aria-live="polite" hidden>5 km radius</div>
 
       <div class="map-error" id="mapError" role="alert" hidden>
         <span class="material-symbols-rounded" aria-hidden="true">map</span>
@@ -178,7 +178,7 @@
           </div>
         </details>
 
-        <section class="results-section" aria-labelledby="resultsHeading">
+        <section class="results-section" id="resultsSection" aria-labelledby="resultsHeading">
           <div class="results-heading-row">
             <div>
               <h2 id="resultsHeading">Good food, close by</h2>

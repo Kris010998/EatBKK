@@ -36,6 +36,7 @@ const state = {
   restaurantMarkers: [],
   userMarker: null,
   radiusCircle: null,
+  radiusLabelMarker: null,
   ranked: [],
   selected: [],
   activeUrl: null,
@@ -81,6 +82,7 @@ function cacheElements() {
   elements.radiusBadge = document.getElementById("radiusBadge");
   elements.resultCount = document.getElementById("resultCount");
   elements.resultsTrack = document.getElementById("resultsTrack");
+  elements.resultsSection = document.getElementById("resultsSection");
   elements.emptyState = document.getElementById("emptyState");
   elements.surpriseButton = document.getElementById("surpriseButton");
   elements.locateButton = document.getElementById("locateButton");
@@ -146,11 +148,8 @@ function setMode(mode) {
   updateSearchSummary();
   generateRecommendations();
 
-  if (window.innerWidth <= 768) {
-    elements.modeDisclosure.open = false;
-    elements.filterDisclosure.open = true;
-    setSheetSnap("expanded");
-  }
+  // Keep the selected mode open so first-time users can read its explanation.
+  // Step 2 opens only when the user explicitly chooses it.
 }
 
 function bindFilters() {
@@ -432,20 +431,29 @@ function renderRecommendations(ranked, selected) {
 
   elements.resultCount.textContent = `${ranked.length} places · showing ${selected.length}`;
   elements.compactResultCount.textContent = `${selected.length} picks from ${ranked.length} nearby`;
-  selected.forEach((restaurant) => {
-    elements.resultsTrack.appendChild(createRestaurantCard(restaurant));
+  selected.forEach((restaurant, index) => {
+    elements.resultsTrack.appendChild(createRestaurantCard(restaurant, index));
   });
   renderMapMarkers();
 }
 
-function createRestaurantCard(restaurant) {
+function createRestaurantCard(restaurant, index) {
   const card = document.createElement("article");
   card.className = "restaurant-card";
   card.dataset.url = restaurant.url;
-  card.classList.toggle("is-selected", restaurant.url === state.activeUrl);
+  card.dataset.mapRank = String(index + 1);
+  card.tabIndex = 0;
+  const isActive = restaurant.url === state.activeUrl;
+  card.classList.toggle("is-selected", isActive);
+  card.setAttribute("aria-current", isActive ? "true" : "false");
+  card.setAttribute("aria-label", `Map ${index + 1}: ${restaurant.name}`);
 
   const body = document.createElement("div");
   body.className = "restaurant-card__body";
+
+  const rank = document.createElement("span");
+  rank.className = "restaurant-card__rank";
+  rank.textContent = `Map ${index + 1}`;
 
   const name = document.createElement("h3");
   name.className = "restaurant-card__name";
@@ -479,16 +487,21 @@ function createRestaurantCard(restaurant) {
   showOnMap.className = "show-on-map-button";
   showOnMap.type = "button";
   showOnMap.setAttribute("aria-label", `Show ${restaurant.name} on map`);
-  showOnMap.appendChild(createIcon("map"));
-  showOnMap.addEventListener("click", () => focusRestaurant(restaurant, { collapseSheet: true }));
+  showOnMap.append(createIcon("location_on"), document.createTextNode(`Map ${index + 1}`));
+  showOnMap.addEventListener("click", () => focusRestaurant(restaurant, { source: "list" }));
 
   actions.append(directions, showOnMap);
-  body.append(name, cuisine, facts, actions);
+  body.append(rank, name, cuisine, facts, actions);
   card.appendChild(body);
 
   card.addEventListener("click", (event) => {
     if (event.target.closest("a, button")) return;
-    focusRestaurant(restaurant, { collapseSheet: false });
+    focusRestaurant(restaurant, { source: "list" });
+  });
+  card.addEventListener("keydown", (event) => {
+    if (!['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
+    focusRestaurant(restaurant, { source: "list" });
   });
   return card;
 }
@@ -670,6 +683,40 @@ function updateRadiusCircle() {
     fillOpacity: 0.1,
     clickable: false
   });
+
+  const labelPosition = destinationPoint(currentPosition(), state.maxDistance, 55);
+  elements.radiusBadge.textContent = `${state.maxDistance} km radius`;
+  elements.radiusBadge.hidden = false;
+  if (!state.radiusLabelMarker) {
+    state.radiusLabelMarker = new state.markerLibrary.AdvancedMarkerElement({
+      map: state.map,
+      position: labelPosition,
+      title: `${state.maxDistance} kilometre search boundary`,
+      content: elements.radiusBadge,
+      zIndex: 450
+    });
+  } else {
+    state.radiusLabelMarker.map = state.map;
+    state.radiusLabelMarker.position = labelPosition;
+    state.radiusLabelMarker.title = `${state.maxDistance} kilometre search boundary`;
+  }
+}
+
+function destinationPoint(origin, distanceKm, bearingDegrees) {
+  const earthRadiusKm = 6371;
+  const angularDistance = distanceKm / earthRadiusKm;
+  const bearing = bearingDegrees * Math.PI / 180;
+  const startLat = origin.lat * Math.PI / 180;
+  const startLng = origin.lng * Math.PI / 180;
+  const endLat = Math.asin(
+    Math.sin(startLat) * Math.cos(angularDistance) +
+    Math.cos(startLat) * Math.sin(angularDistance) * Math.cos(bearing)
+  );
+  const endLng = startLng + Math.atan2(
+    Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(startLat),
+    Math.cos(angularDistance) - Math.sin(startLat) * Math.sin(endLat)
+  );
+  return { lat: endLat * 180 / Math.PI, lng: endLng * 180 / Math.PI };
 }
 
 function renderMapMarkers() {
@@ -677,45 +724,91 @@ function renderMapMarkers() {
   state.restaurantMarkers = [];
   if (!state.mapReady || !state.markerLibrary || !state.map) return;
 
-  const selectedUrls = new Set(state.selected.map((restaurant) => restaurant.url));
-  state.ranked.forEach((restaurant) => {
-    const isSelected = selectedUrls.has(restaurant.url);
+  const selectedRanks = new Map(
+    state.selected.map((restaurant, index) => [restaurant.url, index + 1])
+  );
+  state.selected.forEach((restaurant) => {
+    const mapRank = selectedRanks.get(restaurant.url);
+    const isSelected = Boolean(mapRank);
     const isActive = restaurant.url === state.activeUrl;
     const pin = new state.markerLibrary.PinElement({
       background: isActive || isSelected ? "#3155eb" : "#075c3a",
       borderColor: "#fffdf9",
       glyphColor: "#fffdf9",
-      scale: isActive ? 1.18 : isSelected ? 1.04 : 0.88
+      glyph: isSelected ? String(mapRank) : "",
+      scale: isActive ? 1.24 : isSelected ? 1.08 : 0.82
     });
+    const markerContent = document.createElement("div");
+    markerContent.className = "restaurant-map-marker";
+    markerContent.classList.toggle("is-active", isActive);
+    if (isActive) {
+      const label = document.createElement("div");
+      label.className = "restaurant-map-marker__label";
+      const labelName = document.createElement("strong");
+      labelName.textContent = restaurant.name;
+      const labelDistance = document.createElement("span");
+      labelDistance.textContent = formatDistance(restaurant.distance);
+      label.append(labelName, labelDistance);
+      markerContent.appendChild(label);
+    }
+    markerContent.appendChild(pin instanceof Element ? pin : pin.element);
     const marker = new state.markerLibrary.AdvancedMarkerElement({
       map: state.map,
       position: { lat: restaurant.lat, lng: restaurant.lon },
       title: restaurant.name,
-      content: pin.element,
+      content: markerContent,
       gmpClickable: true,
       zIndex: isActive ? 500 : isSelected ? 100 : 1
     });
-    marker.addListener("click", () => focusRestaurant(restaurant, { collapseSheet: false }));
+    if (typeof marker.addEventListener === "function") {
+      marker.addEventListener("gmp-click", () => focusRestaurant(restaurant, { source: "map" }));
+    } else {
+      marker.addListener("click", () => focusRestaurant(restaurant, { source: "map" }));
+    }
     state.restaurantMarkers.push(marker);
   });
 }
 
-function focusRestaurant(restaurant, { collapseSheet } = { collapseSheet: false }) {
+function focusRestaurant(restaurant) {
   state.activeUrl = restaurant.url;
   document.querySelectorAll(".restaurant-card").forEach((card) => {
-    card.classList.toggle("is-selected", card.dataset.url === restaurant.url);
+    const active = card.dataset.url === restaurant.url;
+    card.classList.toggle("is-selected", active);
+    card.setAttribute("aria-current", active ? "true" : "false");
   });
   renderMapMarkers();
 
   const card = [...document.querySelectorAll(".restaurant-card")]
     .find((item) => item.dataset.url === restaurant.url);
-  card?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
 
   if (state.map) {
     state.map.panTo({ lat: restaurant.lat, lng: restaurant.lon });
     state.map.setZoom(15);
   }
-  if (collapseSheet && window.innerWidth <= 768) setSheetSnap("collapsed");
+  if (window.innerWidth <= 768) {
+    elements.modeDisclosure.open = false;
+    elements.filterDisclosure.open = false;
+    setSheetSnap("middle");
+    scheduleRestaurantReveal(card);
+  } else {
+    revealRestaurantCard(card);
+  }
+
+  elements.compactResultCount.textContent = `Map ${card?.dataset.mapRank || ""} · ${restaurant.name}`;
+}
+
+function revealRestaurantCard(card) {
+  if (!card) return;
+  if (window.innerWidth <= 768) {
+    const targetTop = Math.max(0, elements.resultsSection.offsetTop - 8);
+    elements.sheetScroll.scrollTo({ top: targetTop, behavior: "smooth" });
+  }
+  const targetLeft = card.offsetLeft - (elements.resultsTrack.clientWidth - card.clientWidth) / 2;
+  elements.resultsTrack.scrollTo({ left: Math.max(0, targetLeft), behavior: "smooth" });
+}
+
+function scheduleRestaurantReveal(card) {
+  window.setTimeout(() => revealRestaurantCard(card), 300);
 }
 
 function showMapError(message) {
@@ -726,23 +819,19 @@ function showMapError(message) {
 function bindBottomSheet() {
   const snapOrder = ["expanded", "middle", "collapsed"];
   let startY = 0;
-  let startTranslate = 0;
+  let startHeight = 0;
   let moved = false;
 
-  const translateForSnap = (snap) => {
-    const sheetHeight = elements.bottomSheet.offsetHeight;
-    const visibleHeight = snap === "expanded"
-      ? sheetHeight
-      : snap === "middle"
-        ? Math.min(window.innerHeight * 0.42, 360)
-        : 104;
-    return Math.max(0, sheetHeight - visibleHeight);
-  };
+  const heightForSnap = (snap) => snap === "expanded"
+    ? Math.min(window.innerHeight * 0.88, 760)
+    : snap === "middle"
+      ? Math.min(window.innerHeight * 0.48, 430)
+      : 104;
 
   elements.sheetHandle.addEventListener("pointerdown", (event) => {
     if (window.innerWidth > 768) return;
     startY = event.clientY;
-    startTranslate = translateForSnap(elements.bottomSheet.dataset.snap || "middle");
+    startHeight = elements.bottomSheet.offsetHeight;
     moved = false;
     elements.bottomSheet.dataset.dragging = "true";
     elements.sheetHandle.setPointerCapture(event.pointerId);
@@ -752,22 +841,27 @@ function bindBottomSheet() {
     if (elements.bottomSheet.dataset.dragging !== "true") return;
     const delta = event.clientY - startY;
     if (Math.abs(delta) > 5) moved = true;
-    const maxTranslate = translateForSnap("collapsed");
-    const next = Math.max(0, Math.min(maxTranslate, startTranslate + delta));
-    elements.bottomSheet.style.setProperty("--sheet-translate", `${next}px`);
+    const next = Math.max(
+      heightForSnap("collapsed"),
+      Math.min(heightForSnap("expanded"), startHeight - delta)
+    );
+    elements.bottomSheet.style.setProperty("--sheet-height", `${next}px`);
   });
 
   const finishDrag = (event) => {
     if (elements.bottomSheet.dataset.dragging !== "true") return;
     const delta = event.clientY - startY;
-    const current = Math.max(0, Math.min(translateForSnap("collapsed"), startTranslate + delta));
+    const current = Math.max(
+      heightForSnap("collapsed"),
+      Math.min(heightForSnap("expanded"), startHeight - delta)
+    );
     const snap = snapOrder.reduce((closest, candidate) => (
-      Math.abs(translateForSnap(candidate) - current) < Math.abs(translateForSnap(closest) - current)
+      Math.abs(heightForSnap(candidate) - current) < Math.abs(heightForSnap(closest) - current)
         ? candidate
         : closest
     ), "middle");
     elements.bottomSheet.dataset.dragging = "false";
-    elements.bottomSheet.style.removeProperty("--sheet-translate");
+    elements.bottomSheet.style.removeProperty("--sheet-height");
     setSheetSnap(snap);
     if (elements.sheetHandle.hasPointerCapture(event.pointerId)) {
       elements.sheetHandle.releasePointerCapture(event.pointerId);
@@ -796,7 +890,7 @@ function bindBottomSheet() {
 
   elements.viewMapButton.addEventListener("click", () => {
     const current = elements.bottomSheet.dataset.snap || "middle";
-    setSheetSnap(current === "collapsed" ? "middle" : "collapsed");
+    setSheetSnap(current === "expanded" ? "middle" : current === "middle" ? "expanded" : "middle");
   });
 }
 
@@ -824,7 +918,10 @@ function bindDisclosureControls() {
   elements.filterDoneButton.addEventListener("click", () => {
     elements.filterDisclosure.open = false;
     setSheetSnap("middle");
-    elements.sheetScroll.scrollTo({ top: 0, behavior: "smooth" });
+    scheduleRestaurantReveal(
+      [...document.querySelectorAll(".restaurant-card")]
+        .find((card) => card.dataset.url === state.activeUrl)
+    );
   });
 
   window.addEventListener("resize", applyLayoutDefaults);
@@ -845,11 +942,15 @@ function setSheetSnap(snap) {
   const viewMapIcon = elements.viewMapButton.querySelector(".material-symbols-rounded");
   const viewMapLabel = elements.viewMapButton.querySelector("span:last-child");
   const mapIsPrimary = snap === "collapsed";
-  viewMapIcon.textContent = mapIsPrimary ? "list" : "map";
-  viewMapLabel.textContent = mapIsPrimary ? "List" : "Map";
+  viewMapIcon.textContent = mapIsPrimary ? "list" : snap === "expanded" ? "splitscreen" : "view_agenda";
+  viewMapLabel.textContent = mapIsPrimary ? "List" : snap === "expanded" ? "Map + list" : "Full list";
   elements.viewMapButton.setAttribute(
     "aria-label",
-    mapIsPrimary ? "Expand the restaurant list" : "Collapse the restaurant list and view the map"
+    mapIsPrimary
+      ? "Show the restaurant list with the map"
+      : snap === "expanded"
+        ? "Show the map and restaurant list together"
+        : "Expand the restaurant list"
   );
   if (snap === "collapsed") {
     elements.modeDisclosure.open = false;

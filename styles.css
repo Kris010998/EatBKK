@@ -143,19 +143,32 @@ a:focus-visible {
 }
 
 .radius-badge {
-  position: absolute;
-  top: 22%;
-  left: 50%;
-  z-index: 3;
-  transform: translateX(-50%);
+  position: relative;
+  transform: translateY(-8px);
   padding: 7px 12px;
+  border: 2px solid var(--white);
   border-radius: 999px;
   background: var(--cobalt);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 0 0 1px rgba(36, 68, 204, 0.35), var(--shadow-sm);
   color: white;
   font-size: 13px;
   font-weight: 700;
+  white-space: nowrap;
   pointer-events: none;
+}
+
+.radius-badge::after {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateX(-50%);
+  border: 2px solid var(--white);
+  border-radius: 50%;
+  background: var(--cobalt);
+  box-shadow: 0 0 0 1px rgba(36, 68, 204, 0.4);
+  content: "";
 }
 
 .map-error {
@@ -188,22 +201,21 @@ a:focus-visible {
 }
 
 .bottom-sheet {
-  --sheet-translate: calc(100% - min(42dvh, 360px));
+  --sheet-height: min(48dvh, 430px);
   position: fixed;
   right: 0;
   bottom: 0;
   left: 0;
   z-index: 10;
-  height: min(88dvh, 760px);
+  height: var(--sheet-height);
   overflow: hidden;
-  transform: translateY(var(--sheet-translate));
   border: 1.5px solid var(--forest-strong);
   border-bottom: 0;
   border-radius: 26px 26px 0 0;
   background: rgba(244, 248, 245, 0.97);
   box-shadow: var(--shadow-lg);
-  transition: transform 260ms cubic-bezier(0.22, 0.8, 0.3, 1);
-  will-change: transform;
+  transition: height 260ms cubic-bezier(0.22, 0.8, 0.3, 1);
+  will-change: height;
 }
 
 .bottom-sheet[data-dragging="true"] {
@@ -211,15 +223,15 @@ a:focus-visible {
 }
 
 .bottom-sheet[data-snap="expanded"] {
-  --sheet-translate: 0%;
+  --sheet-height: min(88dvh, 760px);
 }
 
 .bottom-sheet[data-snap="middle"] {
-  --sheet-translate: calc(100% - min(42dvh, 360px));
+  --sheet-height: min(48dvh, 430px);
 }
 
 .bottom-sheet[data-snap="collapsed"] {
-  --sheet-translate: calc(100% - 104px - env(safe-area-inset-bottom));
+  --sheet-height: calc(104px + env(safe-area-inset-bottom));
 }
 
 .sheet-handle {
@@ -658,10 +670,12 @@ h2 {
 
 .restaurant-card.is-selected {
   border-color: var(--cobalt);
-  box-shadow: 0 10px 24px rgba(49, 85, 235, 0.16);
+  background: linear-gradient(180deg, rgba(241, 238, 255, 0.72), var(--white) 42%);
+  box-shadow: 0 0 0 2px rgba(49, 85, 235, 0.16), 0 10px 24px rgba(49, 85, 235, 0.18);
 }
 
 .restaurant-card__body {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -669,12 +683,33 @@ h2 {
 }
 
 .restaurant-card__name {
+  padding-right: 66px;
   margin: 0;
   color: var(--forest-strong);
   font-size: 21px;
   font-weight: 800;
   letter-spacing: -0.035em;
   line-height: 1.12;
+}
+
+.restaurant-card__rank {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--lavender-soft);
+  color: var(--cobalt-strong);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.restaurant-card.is-selected .restaurant-card__rank {
+  background: var(--cobalt);
+  color: white;
 }
 
 .restaurant-card__cuisine {
@@ -735,11 +770,47 @@ h2 {
 }
 
 .show-on-map-button {
-  width: 46px;
-  padding: 0;
+  min-width: 86px;
+  padding: 0 11px;
   border: 1.5px solid var(--forest-strong);
   background: var(--white);
   color: var(--forest-strong);
+}
+
+.restaurant-map-marker {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 5px;
+  transform-origin: 50% 100%;
+}
+
+.restaurant-map-marker__label {
+  display: flex;
+  max-width: min(240px, 72vw);
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 2px solid var(--cobalt);
+  border-radius: 12px;
+  background: rgba(255, 253, 249, 0.97);
+  box-shadow: var(--shadow-lg);
+  color: var(--forest-strong);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.restaurant-map-marker__label strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.restaurant-map-marker__label span {
+  flex: 0 0 auto;
+  color: var(--cobalt-strong);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .directions-button .material-symbols-rounded,
@@ -854,10 +925,6 @@ h2 {
     height: auto;
     overflow: visible;
     clip: auto;
-  }
-
-  .radius-badge {
-    top: 24px;
   }
 
   .bottom-sheet,
