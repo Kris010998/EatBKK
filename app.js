@@ -2,7 +2,7 @@ const MODES = {
   free: {
     label: "Free",
     summary: "Browse without ranking",
-    helper: "Free ranks every nearby match, then lets you browse the full shortlist."
+    helper: "Free shows every match inside your radius, ordered by distance."
   },
   quick: {
     label: "Quick",
@@ -305,7 +305,7 @@ function generateRecommendations() {
     selected = ranked.slice(0, 5);
   } else {
     ranked = rankFree(candidates);
-    selected = ranked.slice(0, 5);
+    selected = ranked;
   }
 
   if (state.randomize && ranked.length) {
@@ -324,14 +324,7 @@ function generateRecommendations() {
 function rankFree(candidates) {
   return candidates
     .filter((restaurant) => restaurant.distance <= state.maxDistance)
-    .map((restaurant) => ({
-      ...restaurant,
-      score:
-        0.45 * restaurant.rating_norm +
-        0.35 * (1 - restaurant.distance / state.maxDistance) +
-        0.15 * restaurant.review_weight_norm
-    }))
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => a.distance - b.distance);
 }
 
 function rankQuick(candidates) {
@@ -429,8 +422,13 @@ function renderRecommendations(ranked, selected) {
     return;
   }
 
-  elements.resultCount.textContent = `${ranked.length} places · showing ${selected.length}`;
-  elements.compactResultCount.textContent = `${selected.length} picks from ${ranked.length} nearby`;
+  const showsEveryMatch = state.decisionMode === "free" && selected.length === ranked.length;
+  elements.resultCount.textContent = showsEveryMatch
+    ? `${selected.length} places in range`
+    : `${ranked.length} places · showing ${selected.length}`;
+  elements.compactResultCount.textContent = showsEveryMatch
+    ? `${selected.length} restaurants in range`
+    : `${selected.length} picks from ${ranked.length} nearby`;
   selected.forEach((restaurant, index) => {
     elements.resultsTrack.appendChild(createRestaurantCard(restaurant, index));
   });
