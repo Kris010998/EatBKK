@@ -684,7 +684,8 @@ function updateRadiusCircle() {
     clickable: false
   });
 
-  const labelPosition = destinationPoint(currentPosition(), state.maxDistance, 55);
+  // Anchor the label to the circle's northern edge so it remains visible on narrow screens.
+  const labelPosition = destinationPoint(currentPosition(), state.maxDistance, 0);
   elements.radiusBadge.textContent = `${state.maxDistance} km radius`;
   elements.radiusBadge.hidden = false;
   if (!state.radiusLabelMarker) {
