@@ -429,29 +429,24 @@ function renderRecommendations(ranked, selected) {
   elements.compactResultCount.textContent = showsEveryMatch
     ? `${selected.length} restaurants in range`
     : `${selected.length} picks from ${ranked.length} nearby`;
-  selected.forEach((restaurant, index) => {
-    elements.resultsTrack.appendChild(createRestaurantCard(restaurant, index));
+  selected.forEach((restaurant) => {
+    elements.resultsTrack.appendChild(createRestaurantCard(restaurant));
   });
   renderMapMarkers();
 }
 
-function createRestaurantCard(restaurant, index) {
+function createRestaurantCard(restaurant) {
   const card = document.createElement("article");
   card.className = "restaurant-card";
   card.dataset.url = restaurant.url;
-  card.dataset.mapRank = String(index + 1);
   card.tabIndex = 0;
   const isActive = restaurant.url === state.activeUrl;
   card.classList.toggle("is-selected", isActive);
   card.setAttribute("aria-current", isActive ? "true" : "false");
-  card.setAttribute("aria-label", `Map ${index + 1}: ${restaurant.name}`);
+  card.setAttribute("aria-label", restaurant.name);
 
   const body = document.createElement("div");
   body.className = "restaurant-card__body";
-
-  const rank = document.createElement("span");
-  rank.className = "restaurant-card__rank";
-  rank.textContent = `Map ${index + 1}`;
 
   const name = document.createElement("h3");
   name.className = "restaurant-card__name";
@@ -485,11 +480,11 @@ function createRestaurantCard(restaurant, index) {
   showOnMap.className = "show-on-map-button";
   showOnMap.type = "button";
   showOnMap.setAttribute("aria-label", `Show ${restaurant.name} on map`);
-  showOnMap.append(createIcon("location_on"), document.createTextNode(`Map ${index + 1}`));
+  showOnMap.append(createIcon("location_on"), document.createTextNode("Show on map"));
   showOnMap.addEventListener("click", () => focusRestaurant(restaurant, { source: "list" }));
 
   actions.append(directions, showOnMap);
-  body.append(rank, name, cuisine, facts, actions);
+  body.append(name, cuisine, facts, actions);
   card.appendChild(body);
 
   card.addEventListener("click", (event) => {
@@ -632,6 +627,7 @@ async function initMap() {
     createUserMarker();
     updateRadiusCircle();
     renderMapMarkers();
+    state.map.addListener("zoom_changed", renderMapMarkers);
   } catch (error) {
     console.error(error);
     showMapError("Google Maps could not initialize. Restaurant results still work below.");
@@ -723,49 +719,91 @@ function renderMapMarkers() {
   state.restaurantMarkers = [];
   if (!state.mapReady || !state.markerLibrary || !state.map) return;
 
-  const selectedRanks = new Map(
-    state.selected.map((restaurant, index) => [restaurant.url, index + 1])
-  );
-  state.selected.forEach((restaurant) => {
-    const mapRank = selectedRanks.get(restaurant.url);
-    const isSelected = Boolean(mapRank);
-    const isActive = restaurant.url === state.activeUrl;
-    const pin = new state.markerLibrary.PinElement({
-      background: isActive || isSelected ? "#3155eb" : "#075c3a",
-      borderColor: "#fffdf9",
-      glyphColor: "#fffdf9",
-      glyph: isSelected ? String(mapRank) : "",
-      scale: isActive ? 1.24 : isSelected ? 1.08 : 0.82
-    });
-    const markerContent = document.createElement("div");
-    markerContent.className = "restaurant-map-marker";
-    markerContent.classList.toggle("is-active", isActive);
-    if (isActive) {
-      const label = document.createElement("div");
-      label.className = "restaurant-map-marker__label";
-      const labelName = document.createElement("strong");
-      labelName.textContent = restaurant.name;
-      const labelDistance = document.createElement("span");
-      labelDistance.textContent = formatDistance(restaurant.distance);
-      label.append(labelName, labelDistance);
-      markerContent.appendChild(label);
-    }
-    markerContent.appendChild(pin instanceof Element ? pin : pin.element);
-    const marker = new state.markerLibrary.AdvancedMarkerElement({
-      map: state.map,
-      position: { lat: restaurant.lat, lng: restaurant.lon },
-      title: restaurant.name,
-      content: markerContent,
-      gmpClickable: true,
-      zIndex: isActive ? 500 : isSelected ? 100 : 1
-    });
-    if (typeof marker.addEventListener === "function") {
-      marker.addEventListener("gmp-click", () => focusRestaurant(restaurant, { source: "map" }));
-    } else {
-      marker.addListener("click", () => focusRestaurant(restaurant, { source: "map" }));
-    }
-    state.restaurantMarkers.push(marker);
+  const activeRestaurant = state.selected.find((restaurant) => restaurant.url === state.activeUrl);
+  const clusterCandidates = state.selected.filter((restaurant) => restaurant.url !== state.activeUrl);
+  clusterRestaurants(clusterCandidates, state.map.getZoom() || 13).forEach((group) => {
+    if (group.length === 1) createRestaurantMarker(group[0], false);
+    else createClusterMarker(group);
   });
+  if (activeRestaurant) createRestaurantMarker(activeRestaurant, true);
+}
+
+function createRestaurantMarker(restaurant, isActive) {
+  const markerContent = document.createElement("div");
+  markerContent.className = "restaurant-map-marker";
+  markerContent.classList.toggle("is-active", isActive);
+  if (isActive) {
+    const label = document.createElement("div");
+    label.className = "restaurant-map-marker__label";
+    const labelName = document.createElement("strong");
+    labelName.textContent = restaurant.name;
+    const labelDistance = document.createElement("span");
+    labelDistance.textContent = `${formatDistance(restaurant.distance)} · ${formatPrice(restaurant)}`;
+    label.append(labelName, labelDistance);
+    markerContent.appendChild(label);
+  }
+  const pin = document.createElement("span");
+  pin.className = "restaurant-map-marker__pin";
+  markerContent.appendChild(pin);
+  const marker = new state.markerLibrary.AdvancedMarkerElement({
+    map: state.map,
+    position: { lat: restaurant.lat, lng: restaurant.lon },
+    title: restaurant.name,
+    content: markerContent,
+    gmpClickable: true,
+    zIndex: isActive ? 500 : 1
+  });
+  if (typeof marker.addEventListener === "function") {
+    marker.addEventListener("gmp-click", () => focusRestaurant(restaurant));
+  } else {
+    marker.addListener("click", () => focusRestaurant(restaurant));
+  }
+  state.restaurantMarkers.push(marker);
+}
+
+function createClusterMarker(group) {
+  const center = group.reduce((position, restaurant) => ({
+    lat: position.lat + restaurant.lat / group.length,
+    lng: position.lng + restaurant.lon / group.length
+  }), { lat: 0, lng: 0 });
+  const content = document.createElement("div");
+  content.className = "restaurant-cluster";
+  content.textContent = String(group.length);
+  const title = `${group.length} restaurants in this area`;
+  const marker = new state.markerLibrary.AdvancedMarkerElement({
+    map: state.map,
+    position: center,
+    content,
+    title,
+    gmpClickable: true,
+    zIndex: 300 + group.length
+  });
+  const expandCluster = () => {
+    state.map.panTo(center);
+    state.map.setZoom(Math.min(15, (state.map.getZoom() || 13) + 2));
+  };
+  if (typeof marker.addEventListener === "function") {
+    marker.addEventListener("gmp-click", expandCluster);
+  } else {
+    marker.addListener("click", expandCluster);
+  }
+  state.restaurantMarkers.push(marker);
+}
+
+function clusterRestaurants(restaurants, zoom) {
+  if (zoom >= 15) return restaurants.map((restaurant) => [restaurant]);
+  const worldSize = 256 * (2 ** zoom);
+  const cellSize = 70;
+  const groups = new Map();
+  restaurants.forEach((restaurant) => {
+    const sinLatitude = Math.max(-0.9999, Math.min(0.9999, Math.sin(restaurant.lat * Math.PI / 180)));
+    const x = (0.5 + restaurant.lon / 360) * worldSize;
+    const y = (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * worldSize;
+    const key = `${Math.floor(x / cellSize)}:${Math.floor(y / cellSize)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(restaurant);
+  });
+  return [...groups.values()];
 }
 
 function focusRestaurant(restaurant) {
@@ -793,7 +831,7 @@ function focusRestaurant(restaurant) {
     revealRestaurantCard(card);
   }
 
-  elements.compactResultCount.textContent = `Map ${card?.dataset.mapRank || ""} · ${restaurant.name}`;
+  elements.compactResultCount.textContent = restaurant.name;
 }
 
 function revealRestaurantCard(card) {
