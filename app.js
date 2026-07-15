@@ -86,6 +86,8 @@ function cacheElements() {
   elements.emptyState = document.getElementById("emptyState");
   elements.surpriseButton = document.getElementById("surpriseButton");
   elements.locateButton = document.getElementById("locateButton");
+  elements.locateIcon = document.getElementById("locateIcon");
+  elements.locateLabel = document.getElementById("locateLabel");
   elements.mapError = document.getElementById("mapError");
   elements.mapErrorMessage = document.getElementById("mapErrorMessage");
   elements.toast = document.getElementById("toast");
@@ -547,8 +549,7 @@ function locateUser() {
     return;
   }
 
-  elements.locateButton.disabled = true;
-  elements.locateButton.setAttribute("aria-busy", "true");
+  setLocationButtonState({ label: "Locating…", icon: "progress_activity", busy: true });
   navigator.geolocation.getCurrentPosition(
     (position) => {
       state.userLat = position.coords.latitude;
@@ -561,19 +562,27 @@ function locateUser() {
       updateRadiusCircle();
       generateRecommendations();
       showToast("Using your current location.");
-      resetLocationButton();
+      setLocationButtonState({ label: "Located", icon: "my_location", located: true });
     },
     () => {
       showToast("We could not access your location. You can still browse Bangkok.");
-      resetLocationButton();
+      setLocationButtonState({ label: "Locate me", icon: "my_location" });
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
   );
 }
 
-function resetLocationButton() {
-  elements.locateButton.disabled = false;
-  elements.locateButton.removeAttribute("aria-busy");
+function setLocationButtonState({ label, icon, busy = false, located = false }) {
+  elements.locateLabel.textContent = label;
+  elements.locateIcon.textContent = icon;
+  elements.locateButton.disabled = busy;
+  elements.locateButton.classList.toggle("is-located", located);
+  if (busy) elements.locateButton.setAttribute("aria-busy", "true");
+  else elements.locateButton.removeAttribute("aria-busy");
+  elements.locateButton.setAttribute(
+    "aria-label",
+    busy ? "Finding your current location" : located ? "Update my current location" : "Use my current location"
+  );
 }
 
 function currentPosition() {
@@ -658,6 +667,7 @@ function createUserMarker() {
     const position = event.latLng;
     state.userLat = position.lat();
     state.userLon = position.lng();
+    setLocationButtonState({ label: "Locate me", icon: "my_location" });
     updateRadiusCircle();
     generateRecommendations();
   });

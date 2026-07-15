@@ -16,15 +16,14 @@
     <main class="map-region" aria-label="Restaurant map">
       <div id="map"></div>
 
-      <a class="brand-mark" href="#resultsHeading" aria-label="Eat BKK home">
-        <span>Eat</span>
-        <span>BKK</span>
-      </a>
-
-      <button class="map-action" id="locateButton" type="button" aria-label="Use my current location">
-        <span class="material-symbols-rounded" aria-hidden="true">my_location</span>
-        <span class="map-action__label">Locate me</span>
-      </button>
+      <div class="map-toolbar" role="group" aria-label="Eat BKK map controls">
+        <a class="brand-mark" href="#resultsHeading" aria-label="Eat BKK home">Eat BKK</a>
+        <span class="map-toolbar__divider" aria-hidden="true"></span>
+        <button class="map-action" id="locateButton" type="button" aria-label="Use my current location">
+          <span class="material-symbols-rounded" id="locateIcon" aria-hidden="true">my_location</span>
+          <span class="map-action__label" id="locateLabel">Locate me</span>
+        </button>
+      </div>
 
       <div class="radius-badge" id="radiusBadge" aria-live="polite" hidden>5 km radius</div>
 
