@@ -315,8 +315,8 @@ function generateRecommendations() {
   state.randomize = false;
   state.ranked = ranked;
   state.selected = selected;
-  if (!selected.some((restaurant) => restaurant.url === state.activeUrl)) {
-    state.activeUrl = selected[0]?.url || null;
+  if (state.activeUrl && !selected.some((restaurant) => restaurant.url === state.activeUrl)) {
+    state.activeUrl = null;
   }
   renderRecommendations(ranked, selected);
 }
