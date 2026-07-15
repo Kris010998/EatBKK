@@ -770,6 +770,15 @@ function createClusterMarker(group) {
   content.className = "restaurant-cluster";
   content.textContent = String(group.length);
   const title = `${group.length} restaurants in this area`;
+  let handled = false;
+  const expandCluster = () => {
+    if (handled) return;
+    handled = true;
+    state.map.panTo(center);
+    state.map.setZoom(Math.min(15, (state.map.getZoom() || 13) + 2));
+    window.setTimeout(() => { handled = false; }, 300);
+  };
+  content.addEventListener("click", expandCluster);
   const marker = new state.markerLibrary.AdvancedMarkerElement({
     map: state.map,
     position: center,
@@ -778,14 +787,9 @@ function createClusterMarker(group) {
     gmpClickable: true,
     zIndex: 300 + group.length
   });
-  const expandCluster = () => {
-    state.map.panTo(center);
-    state.map.setZoom(Math.min(15, (state.map.getZoom() || 13) + 2));
-  };
+  marker.addListener("click", expandCluster);
   if (typeof marker.addEventListener === "function") {
     marker.addEventListener("gmp-click", expandCluster);
-  } else {
-    marker.addListener("click", expandCluster);
   }
   state.restaurantMarkers.push(marker);
 }
