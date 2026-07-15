@@ -1,0 +1,64 @@
+name: Build restaurant data
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data/*.xlsx"
+      - "data/*.xlsm"
+      - "data/*.csv"
+      - "scripts/build_data.py"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/data-pipeline.yml"
+  pull_request:
+    paths:
+      - "data/*.xlsx"
+      - "data/*.xlsm"
+      - "data/*.csv"
+      - "scripts/build_data.py"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/data-pipeline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install data dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Build JSON and quality report
+        run: python scripts/build_data.py
+
+      - name: Run data tests
+        run: python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Require generated files in pull requests
+        if: github.event_name == 'pull_request'
+        run: git diff --exit-code -- restaurants.json data/quality-report.json
+
+      - name: Commit generated files on main
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          if git diff --quiet -- restaurants.json data/quality-report.json; then
+            echo "Generated data is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add restaurants.json data/quality-report.json
+          git commit -m "chore(data): regenerate restaurant data"
+          git push
