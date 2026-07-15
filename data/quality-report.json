@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "valid": true,
+  "source": "data/bangkok_food_combined_ready.xlsx",
+  "source_sha256": "69cf367ea459ca9d71fa20c4d15488b0a5ac9c0e1e6ebb34d67c30b7b791da88",
+  "restaurant_count": 199,
+  "primary_cuisine_count": 8,
+  "primary_cuisines": {
+    "Cantonese": 86,
+    "Hunan & Hubei": 27,
+    "Northern Chinese": 19,
+    "Shanghainese": 1,
+    "Sichuan & Chongqing": 40,
+    "Taiwanese": 4,
+    "Teochew & Fujian": 15,
+    "Yunnan & Guizhou": 7
+  },
+  "warnings": [
+    {
+      "code": "missing_optional",
+      "field": "address",
+      "count": 2
+    },
+    {
+      "code": "missing_optional",
+      "field": "cuisine_subtype",
+      "count": 2
+    },
+    {
+      "code": "missing_optional",
+      "field": "image_url",
+      "count": 7
+    },
+    {
+      "code": "duplicate_name",
+      "count": 1,
+      "values": [
+        "Laoteng"
+      ]
+    }
+  ],
+  "errors": []
+}

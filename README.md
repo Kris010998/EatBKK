@@ -200,6 +200,54 @@ User's location image for the project.
 
 # 🚀 Usage
 
+## Current data workflow
+
+The canonical source is `data/bangkok_food_combined_ready.xlsx`. The builder also
+accepts a CSV source through `--input`.
+
+```bash
+python3 -m pip install -r requirements.txt
+python3 scripts/build_data.py
+python3 scripts/build_data.py --check
+python3 -m unittest discover -s tests -p "test_*.py"
+```
+
+The build produces:
+
+- `restaurants.json`, consumed by the web app
+- `data/quality-report.json`, containing source checksum, row counts, cuisine counts,
+  missing optional fields, duplicate-name warnings, and validation results
+
+On `main`, changes to the canonical Excel/CSV source run the GitHub Actions data
+pipeline. Valid generated files are committed automatically; the existing Vercel
+Git integration then deploys the update.
+
+## Google Maps deployment setup
+
+The frontend loads Maps through `/api/maps`; the key is read from the Vercel
+environment variable `GOOGLE_MAPS_KEY` and is no longer stored in current source.
+Browser API keys remain visible to browsers by design, so the Google Cloud
+restrictions are the real security boundary.
+
+Before deploying:
+
+1. Rotate the previously committed browser key.
+2. Enable billing on the Google Cloud project and enable **Maps JavaScript API**.
+3. Create a browser key with **Websites (HTTP referrers)** restriction.
+4. Allow `https://eat-in-bkk.vercel.app/*` and the exact custom/preview domains you use.
+5. Restrict the key to **Maps JavaScript API** only.
+6. Create a Google Maps map ID for the web app. Advanced markers require one.
+7. Add the restricted key as `GOOGLE_MAPS_KEY` and the map ID as
+   `GOOGLE_MAPS_MAP_ID` in Vercel for Production, Preview,
+   and Development as appropriate, then redeploy.
+
+For local Vercel development, copy `.env.example` to `.env.local` and use a key
+that also allows the exact localhost origin. Never commit that file.
+
+Run the static interface locally with `npm run dev -- 8000`. Without local Maps
+environment variables the app intentionally shows a map-configuration message,
+while filters and restaurant recommendations remain usable.
+
 ## 1 Run the data processing script
 
 Generate a cleaned dataset from the raw Google Maps export.
