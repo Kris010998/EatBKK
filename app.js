@@ -544,8 +544,22 @@ function bindLocation() {
 }
 
 function locateUser() {
+  if (!window.isSecureContext) {
+    setLocationButtonState({
+      label: "HTTPS needed",
+      icon: "location_disabled",
+      error: true
+    });
+    showToast("Location requires a secure HTTPS connection.", 6000);
+    return;
+  }
   if (!navigator.geolocation) {
-    showToast("Location is not available in this browser.");
+    setLocationButtonState({
+      label: "Unavailable",
+      icon: "location_disabled",
+      error: true
+    });
+    showToast("Location is not available in this browser.", 6000);
     return;
   }
 
@@ -561,27 +575,60 @@ function locateUser() {
       }
       updateRadiusCircle();
       generateRecommendations();
-      showToast("Using your current location.");
+      const accuracy = Math.round(position.coords.accuracy || 0);
+      showToast(accuracy ? `Using your location (about ${accuracy} m accuracy).` : "Using your current location.");
       setLocationButtonState({ label: "Located", icon: "my_location", located: true });
     },
-    () => {
-      showToast("We could not access your location. You can still browse Bangkok.");
-      setLocationButtonState({ label: "Locate me", icon: "my_location" });
+    (error) => {
+      const failure = locationFailureMessage(error);
+      console.info("Geolocation request failed.", { code: error.code, message: error.message });
+      showToast(failure.message, 6500);
+      setLocationButtonState({
+        label: failure.label,
+        icon: "location_disabled",
+        error: true
+      });
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 }
   );
 }
 
-function setLocationButtonState({ label, icon, busy = false, located = false }) {
+function locationFailureMessage(error) {
+  if (error.code === error.PERMISSION_DENIED) {
+    return {
+      label: "Allow location",
+      message: "Location permission is blocked. Allow Location for this site in your browser settings, then try again."
+    };
+  }
+  if (error.code === error.POSITION_UNAVAILABLE) {
+    return {
+      label: "Try again",
+      message: "Your phone could not determine its location. Check Location Services or drag the cat marker manually."
+    };
+  }
+  return {
+    label: "Try again",
+    message: "Location took too long. Try again with a stronger signal, or drag the cat marker manually."
+  };
+}
+
+function setLocationButtonState({ label, icon, busy = false, located = false, error = false }) {
   elements.locateLabel.textContent = label;
   elements.locateIcon.textContent = icon;
   elements.locateButton.disabled = busy;
   elements.locateButton.classList.toggle("is-located", located);
+  elements.locateButton.classList.toggle("has-location-error", error);
   if (busy) elements.locateButton.setAttribute("aria-busy", "true");
   else elements.locateButton.removeAttribute("aria-busy");
   elements.locateButton.setAttribute(
     "aria-label",
-    busy ? "Finding your current location" : located ? "Update my current location" : "Use my current location"
+    busy
+      ? "Finding your current location"
+      : located
+        ? "Update my current location"
+        : error
+          ? "Try to use my current location again"
+          : "Use my current location"
   );
 }
 
@@ -1010,11 +1057,11 @@ function setSheetSnap(snap) {
   if (snap === "expanded") elements.sheetScroll.focus({ preventScroll: true });
 }
 
-function showToast(message) {
+function showToast(message, duration = 3200) {
   window.clearTimeout(state.toastTimer);
   elements.toast.textContent = message;
   elements.toast.hidden = false;
   state.toastTimer = window.setTimeout(() => {
     elements.toast.hidden = true;
-  }, 3200);
+  }, duration);
 }
