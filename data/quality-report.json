@@ -2,9 +2,9 @@
   "schema_version": 2,
   "valid": true,
   "source": "data/bangkok_food_combined_ready.xlsx",
-  "source_sha256": "69cf367ea459ca9d71fa20c4d15488b0a5ac9c0e1e6ebb34d67c30b7b791da88",
-  "source_modified_date": "2026-03-06",
-  "restaurant_count": 199,
+  "source_sha256": "de26c1826ba7deac47f16626c30dea3bff08d4214a75002ddc3d71215cf5656c",
+  "source_modified_date": "2026-08-12",
+  "restaurant_count": 200,
   "primary_cuisine_count": 8,
   "primary_cuisines": {
     "Cantonese": 86,
@@ -14,7 +14,7 @@
     "Sichuan & Chongqing": 40,
     "Taiwanese": 4,
     "Teochew & Fujian": 15,
-    "Yunnan & Guizhou": 7
+    "Yunnan & Guizhou": 8
   },
   "warnings": [
     {
@@ -30,7 +30,7 @@
     {
       "code": "missing_optional",
       "field": "image_url",
-      "count": 7
+      "count": 8
     },
     {
       "code": "duplicate_name",

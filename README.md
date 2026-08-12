@@ -26,7 +26,7 @@ Eat BKK is a mobile-first restaurant discovery map for exploring Chinese food in
 
 ## Data and recommendation logic
 
-The canonical source is [`data/bangkok_food_combined_ready.xlsx`](data/bangkok_food_combined_ready.xlsx). The build pipeline validates and exports 199 restaurants to [`restaurants.json`](restaurants.json).
+The canonical source is [`data/bangkok_food_combined_ready.xlsx`](data/bangkok_food_combined_ready.xlsx). The build pipeline validates and exports 200 restaurants to [`restaurants.json`](restaurants.json).
 
 Each public record contains the original rating and separate derived ranking fields:
 
