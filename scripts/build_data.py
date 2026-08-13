@@ -10,7 +10,9 @@ import json
 import math
 import re
 import sys
+import zipfile
 from collections import Counter
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -114,10 +116,34 @@ def source_modified_date(path: Path) -> str | None:
         from openpyxl import load_workbook
     except ImportError as exc:  # pragma: no cover - exercised in deployment setup
         raise RuntimeError("Excel input requires openpyxl; run pip install -r requirements.txt") from exc
-    workbook = load_workbook(path, read_only=True, data_only=True)
-    modified = workbook.properties.modified
-    workbook.close()
-    return modified.date().isoformat() if modified else None
+    with zipfile.ZipFile(path) as archive:
+        has_core_properties = "docProps/core.xml" in archive.namelist()
+
+    if has_core_properties:
+        workbook = load_workbook(path, read_only=True, data_only=True)
+        modified = workbook.properties.modified
+        workbook.close()
+        if modified:
+            return modified.date().isoformat()
+
+    # Some spreadsheet exporters omit docProps/core.xml. openpyxl then supplies
+    # today's date, which would make unchanged generated files appear stale each
+    # day. Reuse the previously validated date when the source hash is unchanged.
+    if path.resolve() == DEFAULT_INPUT.resolve() and DEFAULT_REPORT.exists():
+        try:
+            previous_report = json.loads(DEFAULT_REPORT.read_text(encoding="utf-8"))
+            current_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+            previous_date = previous_report.get("source_modified_date")
+            if (
+                previous_report.get("source_sha256") == current_hash
+                and isinstance(previous_date, str)
+                and re.fullmatch(r"\d{4}-\d{2}-\d{2}", previous_date)
+            ):
+                return previous_date
+        except (OSError, ValueError, TypeError):
+            pass
+
+    return date.today().isoformat()
 
 
 def clean_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

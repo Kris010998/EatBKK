@@ -5,6 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#dcebe4">
   <meta name="description" content="Find Chinese restaurants in Bangkok by distance, cuisine, rating and budget.">
+  <link rel="canonical" href="https://eat-in-bkk.vercel.app/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Eat BKK">
+  <meta property="og:title" content="Eat BKK — Find Chinese food in Bangkok">
+  <meta property="og:description" content="Explore 200 Chinese restaurants in Bangkok by distance, cuisine, rating and budget.">
+  <meta property="og:url" content="https://eat-in-bkk.vercel.app/">
+  <meta property="og:image" content="https://eat-in-bkk.vercel.app/assets/eat-bkk-social-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Eat BKK Chinese restaurant discovery map in Bangkok">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Eat BKK — Find Chinese food in Bangkok">
+  <meta name="twitter:description" content="Explore 200 Chinese restaurants in Bangkok by distance, cuisine, rating and budget.">
+  <meta name="twitter:image" content="https://eat-in-bkk.vercel.app/assets/eat-bkk-social-card.png">
   <title>Eat BKK — Bangkok Chinese Food Map</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,6 +37,11 @@
           <span class="material-symbols-rounded" id="locateIcon" aria-hidden="true">my_location</span>
           <span class="map-action__label" id="locateLabel">Locate me</span>
         </button>
+      </div>
+
+      <div class="location-context" data-location-context role="status" aria-live="polite">
+        <span class="material-symbols-rounded" data-location-context-icon aria-hidden="true">location_city</span>
+        <span data-location-context-text>Starting from central Bangkok · Locate me or drag the cat</span>
       </div>
 
       <div class="radius-badge" id="radiusBadge" aria-live="polite" hidden>5 km radius</div>
@@ -45,6 +64,10 @@
         <div class="sheet-summary__copy">
           <strong id="compactResultCount">Finding nearby restaurants…</strong>
           <span id="compactSelection">Quick · 5 km · Under ฿400</span>
+          <span class="summary-location-context" data-location-context aria-live="polite">
+            <span class="material-symbols-rounded" data-location-context-icon aria-hidden="true">location_city</span>
+            <span data-location-context-text>Starting from central Bangkok · Locate me or drag the cat</span>
+          </span>
         </div>
         <button class="view-map-button" id="viewMapButton" type="button" aria-label="Collapse the restaurant list and view the map">
           <span class="material-symbols-rounded" aria-hidden="true">map</span>

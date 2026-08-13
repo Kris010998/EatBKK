@@ -26,6 +26,7 @@ const state = {
   decisionMode: "quick",
   userLat: 13.7563,
   userLon: 100.5018,
+  locationSource: "default",
   maxDistance: 5,
   userBudget: 400,
   primaryCuisine: "",
@@ -90,6 +91,7 @@ function cacheElements() {
   elements.locateButton = document.getElementById("locateButton");
   elements.locateIcon = document.getElementById("locateIcon");
   elements.locateLabel = document.getElementById("locateLabel");
+  elements.locationContexts = [...document.querySelectorAll("[data-location-context]")];
   elements.mapError = document.getElementById("mapError");
   elements.mapErrorMessage = document.getElementById("mapErrorMessage");
   elements.toast = document.getElementById("toast");
@@ -452,9 +454,10 @@ function renderRecommendations(ranked, selected) {
   elements.resultCount.textContent = showsEveryMatch
     ? `${selected.length} places in range`
     : `${ranked.length} places · showing ${selected.length}`;
+  const locationLabel = resultLocationLabel();
   elements.compactResultCount.textContent = showsEveryMatch
-    ? `${selected.length} restaurants in range`
-    : `${selected.length} picks from ${ranked.length} nearby`;
+    ? `${selected.length} restaurants ${locationLabel}`
+    : `${selected.length} picks ${locationLabel}`;
   selected.forEach((restaurant) => {
     elements.resultsTrack.appendChild(createRestaurantCard(restaurant));
   });
@@ -604,6 +607,7 @@ function locateUser() {
     (position) => {
       state.userLat = position.coords.latitude;
       state.userLon = position.coords.longitude;
+      state.locationSource = "current";
       if (state.userMarker) state.userMarker.position = currentPosition();
       if (state.map) {
         state.map.panTo(currentPosition());
@@ -614,6 +618,7 @@ function locateUser() {
       const accuracy = Math.round(position.coords.accuracy || 0);
       showToast(accuracy ? `Using your location (about ${accuracy} m accuracy).` : "Using your current location.");
       setLocationButtonState({ label: "Located", icon: "my_location", located: true });
+      updateLocationContext();
     },
     (error) => {
       const failure = locationFailureMessage(error);
@@ -666,6 +671,28 @@ function setLocationButtonState({ label, icon, busy = false, located = false, er
           ? "Try to use my current location again"
           : "Use my current location"
   );
+}
+
+function updateLocationContext() {
+  if (!elements.locationContexts?.length) return;
+
+  const context = state.locationSource === "current"
+    ? { icon: "near_me", text: "Using your current location" }
+    : state.locationSource === "custom"
+      ? { icon: "location_on", text: "Using the cat marker's location" }
+      : { icon: "location_city", text: "Starting from central Bangkok · Locate me or drag the cat" };
+
+  elements.locationContexts.forEach((element) => {
+    element.dataset.source = state.locationSource;
+    element.querySelector("[data-location-context-icon]").textContent = context.icon;
+    element.querySelector("[data-location-context-text]").textContent = context.text;
+  });
+}
+
+function resultLocationLabel() {
+  if (state.locationSource === "current") return "near you";
+  if (state.locationSource === "custom") return "near the cat";
+  return "near central Bangkok";
 }
 
 function currentPosition() {
@@ -750,7 +777,9 @@ function createUserMarker() {
     const position = event.latLng;
     state.userLat = position.lat();
     state.userLon = position.lng();
+    state.locationSource = "custom";
     setLocationButtonState({ label: "Locate me", icon: "my_location" });
+    updateLocationContext();
     updateRadiusCircle();
     generateRecommendations();
   });

@@ -22,6 +22,8 @@ export default function handler(req, res) {
     loading: "async",
     libraries: "marker",
     v: "weekly",
+    language: "en",
+    region: "TH",
     auth_referrer_policy: "origin"
   });
 
