@@ -1090,6 +1090,34 @@ h2 {
     display: none;
   }
 
+  .filter-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-right: 0;
+    margin-left: 0;
+    padding-right: 0;
+    padding-left: 0;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  .filter-control {
+    width: 100%;
+    min-width: 0;
+    touch-action: manipulation;
+  }
+
+  .filter-control select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    overflow: hidden;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
   .sheet-summary {
     min-height: 88px;
   }
@@ -1111,6 +1139,13 @@ h2 {
     margin-left: -14px;
     padding-right: 14px;
     padding-left: 14px;
+  }
+
+  .filter-row {
+    margin-right: 0;
+    margin-left: 0;
+    padding-right: 0;
+    padding-left: 0;
   }
 
   .mode-card {

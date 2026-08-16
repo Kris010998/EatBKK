@@ -62,6 +62,16 @@ test("Step 2 defaults remain optional and filters can be changed by touch", asyn
   await expect(page.locator("#primarySelect")).toHaveValue("");
 
   await page.locator("#filterDisclosure > summary").click();
+  const filterLayout = await page.locator("#filterRow").evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    display: getComputedStyle(element).display,
+    columns: getComputedStyle(element).gridTemplateColumns
+  }));
+  expect(filterLayout.display).toBe("grid");
+  expect(filterLayout.columns.split(" ")).toHaveLength(2);
+  expect(filterLayout.scrollWidth).toBeLessThanOrEqual(filterLayout.clientWidth);
+
   await page.locator("#radiusSelect").click();
   await expect(page.locator("#radiusSelect")).toBeFocused();
   await page.locator("#radiusSelect").selectOption("2");
@@ -73,6 +83,9 @@ test("Step 2 defaults remain optional and filters can be changed by touch", asyn
   await page.locator("#primarySelect").click();
   await expect(page.locator("#primarySelect")).toBeFocused();
   await page.locator("#primarySelect").selectOption("Sichuan & Chongqing");
+
+  await page.locator("#subtypeSelect").click();
+  await expect(page.locator("#subtypeSelect")).toBeFocused();
 
   await expect(page.locator("#filterSummary")).toHaveText(
     "2 km · Under ฿600 · Sichuan & Chongqing"
