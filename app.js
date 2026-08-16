@@ -28,7 +28,7 @@ const state = {
   userLon: 100.5018,
   locationSource: "default",
   maxDistance: 5,
-  userBudget: 400,
+  userBudget: 0,
   primaryCuisine: "",
   cuisineSubtype: "",
   map: null,
@@ -213,9 +213,6 @@ function bindFilters() {
     generateRecommendations();
   });
 
-  document.querySelectorAll(".filter-control select").forEach((select) => {
-    select.addEventListener("focus", () => setSheetSnap("expanded"));
-  });
 }
 
 function populateCuisineFilters() {
@@ -1119,7 +1116,6 @@ function setSheetSnap(snap) {
     elements.modeDisclosure.open = false;
     elements.filterDisclosure.open = false;
   }
-  if (snap === "expanded") elements.sheetScroll.focus({ preventScroll: true });
 }
 
 function showToast(message, duration = 3200) {

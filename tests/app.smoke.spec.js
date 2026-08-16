@@ -50,3 +50,37 @@ test("mobile restaurant finder loads verified data", async ({ page, request, con
   );
   await expect(page.locator("#compactResultCount")).toContainText("near you");
 });
+
+test("Step 2 defaults remain optional and filters can be changed by touch", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.locator("#filterSummary")).toHaveText(
+    "5 km · Any budget · All cuisines"
+  );
+  await expect(page.locator("#radiusSelect")).toHaveValue("5");
+  await expect(page.locator("#budgetSelect")).toHaveValue("0");
+  await expect(page.locator("#primarySelect")).toHaveValue("");
+
+  await page.locator("#filterDisclosure > summary").click();
+  await page.locator("#radiusSelect").click();
+  await expect(page.locator("#radiusSelect")).toBeFocused();
+  await page.locator("#radiusSelect").selectOption("2");
+
+  await page.locator("#budgetSelect").click();
+  await expect(page.locator("#budgetSelect")).toBeFocused();
+  await page.locator("#budgetSelect").selectOption("600");
+
+  await page.locator("#primarySelect").click();
+  await expect(page.locator("#primarySelect")).toBeFocused();
+  await page.locator("#primarySelect").selectOption("Sichuan & Chongqing");
+
+  await expect(page.locator("#filterSummary")).toHaveText(
+    "2 km · Under ฿600 · Sichuan & Chongqing"
+  );
+  await expect(page.locator("#resultCount")).not.toContainText("Loading");
+
+  await page.locator("#budgetSelect").selectOption("0");
+  await page.locator("#modeDisclosure > summary").click();
+  await page.locator('[data-mode="budget"]').click();
+  await expect(page.locator("#budgetSelect")).toHaveValue("400");
+});

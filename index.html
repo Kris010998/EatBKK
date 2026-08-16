@@ -63,7 +63,7 @@
       <div class="sheet-summary" aria-label="Current search summary">
         <div class="sheet-summary__copy">
           <strong id="compactResultCount">Finding nearby restaurants…</strong>
-          <span id="compactSelection">Quick · 5 km · Under ฿400</span>
+          <span id="compactSelection">Quick · 5 km · Any budget · All cuisines</span>
           <span class="summary-location-context" data-location-context aria-live="polite">
             <span class="material-symbols-rounded" data-location-context-icon aria-hidden="true">location_city</span>
             <span data-location-context-text>Starting from central Bangkok · Locate me or drag the cat</span>
@@ -135,7 +135,7 @@
             <span class="step-label">Step 2</span>
             <span class="disclosure-summary__copy">
               <strong>Refine your picks</strong>
-              <small id="filterSummary">5 km · Under ฿400 · All cuisines</small>
+              <small id="filterSummary">5 km · Any budget · All cuisines</small>
             </span>
             <span class="optional-label">Optional</span>
             <span class="material-symbols-rounded disclosure-chevron" aria-hidden="true">expand_more</span>
@@ -161,12 +161,12 @@
               <span class="material-symbols-rounded filter-control__arrow" aria-hidden="true">expand_more</span>
               </label>
 
-              <label class="filter-control is-active">
+              <label class="filter-control">
               <span class="material-symbols-rounded" aria-hidden="true">sell</span>
               <select id="budgetSelect" aria-label="Maximum budget">
-                <option value="0">Any budget</option>
+                <option value="0" selected>Any budget</option>
                 <option value="200">Under ฿200</option>
-                <option value="400" selected>Under ฿400</option>
+                <option value="400">Under ฿400</option>
                 <option value="600">Under ฿600</option>
                 <option value="800">Under ฿800</option>
                 <option value="1000">Under ฿1,000</option>
